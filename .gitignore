@@ -1,0 +1,17 @@
+# Node
+node_modules/
+
+# Build artifacts (keep main.js for BRAT)
+# main.js
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Obsidian
+data.json

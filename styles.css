@@ -1,0 +1,349 @@
+/* Thinking Tool Plugin Styles */
+
+/* ===== Floating Selection Button ===== */
+.thinking-tool-floating-btn {
+  position: fixed;
+  z-index: 9999;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.thinking-tool-floating-btn:hover {
+  background: var(--interactive-accent-hover);
+  transform: scale(1.05);
+}
+
+/* ===== Connections View (Center Panel) ===== */
+.thinking-tool-connections-view {
+  padding: 10px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.thinking-tool-connections-view .view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 10px;
+}
+
+.thinking-tool-connections-view .view-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.thinking-tool-connections-view .view-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.thinking-tool-connections-view .view-actions button {
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--interactive-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  color: var(--text-normal);
+}
+
+.thinking-tool-connections-view .view-actions button:hover {
+  background: var(--interactive-hover);
+}
+
+.thinking-tool-connections-view .connections-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.thinking-tool-connections-view .connection-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  background: var(--background-secondary);
+}
+
+.thinking-tool-connections-view .connection-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.thinking-tool-connections-view .connection-item .connection-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thinking-tool-connections-view .connection-item .connection-score {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 8px;
+  padding: 2px 6px;
+  background: var(--background-primary);
+  border-radius: 4px;
+}
+
+.thinking-tool-connections-view .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 20px;
+}
+
+.thinking-tool-connections-view .empty-state .empty-icon {
+  font-size: 48px;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.thinking-tool-connections-view .loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+}
+
+/* ===== Thought Modal ===== */
+.thinking-tool-modal {
+  max-width: 500px;
+}
+
+.thinking-tool-modal .modal-content {
+  padding: 20px;
+}
+
+.thinking-tool-modal .quote-preview {
+  background: var(--background-secondary);
+  border-left: 3px solid var(--interactive-accent);
+  padding: 10px 15px;
+  margin-bottom: 15px;
+  border-radius: 0 6px 6px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.thinking-tool-modal .source-info {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-bottom: 15px;
+}
+
+.thinking-tool-modal .thought-input-container {
+  margin-bottom: 15px;
+}
+
+.thinking-tool-modal .thought-input-container label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: var(--text-normal);
+}
+
+.thinking-tool-modal .thought-input {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 14px;
+  resize: vertical;
+}
+
+.thinking-tool-modal .thought-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.thinking-tool-modal .modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.thinking-tool-modal .modal-buttons button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.thinking-tool-modal .modal-buttons .btn-primary {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+}
+
+.thinking-tool-modal .modal-buttons .btn-secondary {
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+}
+
+/* ===== Article Generation Modal ===== */
+.thinking-tool-generate-modal {
+  max-width: 600px;
+}
+
+.thinking-tool-generate-modal .step-indicator {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  gap: 10px;
+}
+
+.thinking-tool-generate-modal .step {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.thinking-tool-generate-modal .step.active {
+  color: var(--interactive-accent);
+  font-weight: 600;
+}
+
+.thinking-tool-generate-modal .step-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-secondary);
+  font-size: 12px;
+}
+
+.thinking-tool-generate-modal .step.active .step-number {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.thinking-tool-generate-modal .topic-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.thinking-tool-generate-modal .topic-option {
+  padding: 15px;
+  border: 2px solid var(--background-modifier-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.thinking-tool-generate-modal .topic-option:hover {
+  border-color: var(--interactive-accent);
+}
+
+.thinking-tool-generate-modal .topic-option.selected {
+  border-color: var(--interactive-accent);
+  background: var(--background-secondary);
+}
+
+.thinking-tool-generate-modal .topic-title {
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.thinking-tool-generate-modal .topic-description {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.thinking-tool-generate-modal .persona-selector {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.thinking-tool-generate-modal .persona-option {
+  padding: 12px;
+  border: 2px solid var(--background-modifier-border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.thinking-tool-generate-modal .persona-option:hover {
+  border-color: var(--interactive-accent);
+}
+
+.thinking-tool-generate-modal .persona-option.selected {
+  border-color: var(--interactive-accent);
+  background: var(--background-secondary);
+}
+
+.thinking-tool-generate-modal .generating-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  color: var(--text-muted);
+}
+
+.thinking-tool-generate-modal .spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--background-modifier-border);
+  border-top-color: var(--interactive-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== Settings Tab ===== */
+.thinking-tool-settings .setting-item-heading {
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.thinking-tool-settings .setting-item-heading:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
