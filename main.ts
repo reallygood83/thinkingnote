@@ -1260,6 +1260,7 @@ class GenerateArticleModal extends Modal {
   step: number = 1;
   topics: TopicSuggestion[] = [];
   selectedTopic: TopicSuggestion | null = null;
+  selectedTopicIndex: number = -1;
   editedOutline: string[] = [];
   selectedPersona: Persona = "essay";
   selectedLength: ArticleLength = "medium";
@@ -1369,8 +1370,9 @@ class GenerateArticleModal extends Modal {
 
     const topicsContainer = contentEl.createDiv({ cls: "topic-options" });
 
-    for (const topic of this.topics) {
-      const isSelected = this.selectedTopic === topic;
+    for (let i = 0; i < this.topics.length; i++) {
+      const topic = this.topics[i];
+      const isSelected = this.selectedTopicIndex === i;
       const option = topicsContainer.createDiv({
         cls: `topic-option ${isSelected ? "selected" : ""}`,
       });
@@ -1392,8 +1394,10 @@ class GenerateArticleModal extends Modal {
       }
 
       option.onclick = () => {
+        this.selectedTopicIndex = i;
         this.selectedTopic = topic;
         this.editedOutline = [...topic.outline];
+        this.step = 2;
         this.render();
       };
     }
@@ -1429,6 +1433,7 @@ class GenerateArticleModal extends Modal {
     refreshBtn.onclick = () => {
       this.topics = [];
       this.selectedTopic = null;
+      this.selectedTopicIndex = -1;
       this.render();
     };
 
@@ -1436,9 +1441,9 @@ class GenerateArticleModal extends Modal {
     cancelBtn.onclick = () => this.close();
 
     const nextBtn = buttons.createEl("button", { cls: "btn-primary", text: "다음 →" });
-    nextBtn.disabled = !this.selectedTopic;
+    nextBtn.disabled = this.selectedTopicIndex < 0;
     nextBtn.onclick = () => {
-      if (this.selectedTopic) {
+      if (this.selectedTopicIndex >= 0 && this.selectedTopic) {
         this.step = 2;
         this.render();
       }

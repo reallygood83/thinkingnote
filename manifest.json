@@ -1,7 +1,7 @@
 {
   "id": "thinking-tool",
   "name": "Thinking Tool",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "minAppVersion": "1.4.0",
   "description": "A tool that helps you think, not a tool that thinks for you. Collect materials from notes, add your thoughts, and generate articles with AI assistance.",
   "author": "Seulki Ji",
