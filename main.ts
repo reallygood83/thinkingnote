@@ -625,19 +625,33 @@ Respond ONLY with valid JSON (no markdown, no explanation):
     const response = await this.callAI(prompt, onProgress);
     
     try {
-      let jsonText = response
-        .replace(/```(?:json)?\s*/g, '')
-        .replace(/```\s*/g, '');
+      let jsonText = response;
       
-      const arrayMatch = jsonText.match(/\[[\s\S]*\]/);
+      const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        jsonText = codeBlockMatch[1];
+      }
+      
+      const arrayMatch = jsonText.match(/\[\s*\{[\s\S]*\}\s*\]/);
       if (arrayMatch) {
         jsonText = arrayMatch[0];
       }
       
+      jsonText = jsonText.trim();
+      
       console.log("AI Response (first 500 chars):", response.substring(0, 500));
       console.log("Extracted JSON (first 500 chars):", jsonText.substring(0, 500));
       
-      const topics = JSON.parse(jsonText) as TopicSuggestion[];
+      let topics: TopicSuggestion[];
+      try {
+        topics = JSON.parse(jsonText);
+      } catch (parseError) {
+        jsonText = jsonText
+          .replace(/,\s*}/g, '}')
+          .replace(/,\s*\]/g, ']')
+          .replace(/[\u0000-\u001F]+/g, ' ');
+        topics = JSON.parse(jsonText);
+      }
       
       const validated = topics.filter(topic => 
         topic?.title && 
