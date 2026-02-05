@@ -81,7 +81,7 @@ const DEFAULT_SETTINGS: ThinkingToolSettings = {
   geminiApiKey: "",
   openaiModel: "gpt-4o",
   anthropicModel: "claude-sonnet-4-20250514",
-  geminiModel: "gemini-2.5-flash-preview-05-20",
+  geminiModel: "gemini-2.5-flash",
   materialNoteFolder: "",
   connectionsLimit: 20,
   outputLanguage: "한국어",
@@ -1666,7 +1666,7 @@ class ThinkingToolSettingTab extends PluginSettingTab {
       .setDesc("Gemini model to use")
       .addText((text) =>
         text
-          .setPlaceholder("gemini-2.5-flash-preview-05-20")
+          .setPlaceholder("gemini-2.5-flash")
           .setValue(this.plugin.settings.geminiModel)
           .onChange(async (value) => {
             this.plugin.settings.geminiModel = value;
