@@ -625,17 +625,42 @@ Respond ONLY with valid JSON (no markdown, no explanation):
     const response = await this.callAI(prompt, onProgress);
     
     try {
-      const jsonMatch = response.match(/\[[\s\S]*?\]/);
-      if (jsonMatch) {
-        const topics = JSON.parse(jsonMatch[0]) as TopicSuggestion[];
-        if (Array.isArray(topics) && topics.length > 0) {
-          return topics.slice(0, 5);
-        }
+      let jsonText = response
+        .replace(/```(?:json)?\s*/g, '')
+        .replace(/```\s*/g, '');
+      
+      const arrayMatch = jsonText.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
+        jsonText = arrayMatch[0];
       }
-      throw new Error("유효한 주제를 생성하지 못했습니다.");
+      
+      console.log("AI Response (first 500 chars):", response.substring(0, 500));
+      console.log("Extracted JSON (first 500 chars):", jsonText.substring(0, 500));
+      
+      const topics = JSON.parse(jsonText) as TopicSuggestion[];
+      
+      const validated = topics.filter(topic => 
+        topic?.title && 
+        typeof topic.title === 'string' &&
+        topic?.description && 
+        typeof topic.description === 'string' &&
+        Array.isArray(topic?.outline) &&
+        topic.outline.length > 0
+      ).slice(0, 5);
+      
+      if (validated.length === 0) {
+        console.error("No valid topics after validation. Raw topics:", topics);
+        throw new Error("유효한 주제가 없습니다. AI 응답에서 필수 필드(title, description, outline)를 찾을 수 없습니다.");
+      }
+      
+      return validated;
     } catch (error) {
-      console.error("Failed to parse topic suggestions:", error, response);
-      throw new Error("주제 제안 파싱 실패: AI 응답 형식이 올바르지 않습니다.");
+      console.error("Failed to parse topic suggestions:", {
+        error,
+        rawResponse: response.substring(0, 1000),
+      });
+      const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
+      throw new Error(`주제 제안 파싱 실패: ${errorMessage}`);
     }
   }
 
@@ -849,11 +874,18 @@ ${customInstructions ? `- **추가 지시**: ${customInstructions}` : ""}
     const response = await this.withTimeout(request, API_TIMEOUT);
 
     if (response.status === 400) {
-      throw new Error("Gemini API 키가 유효하지 않거나 요청 형식이 잘못되었습니다.");
+      const errorDetail = response.json?.error?.message || "";
+      throw new Error(`Gemini API 요청 오류: ${errorDetail || "API 키가 유효하지 않거나 요청 형식이 잘못되었습니다."}`);
+    } else if (response.status === 403) {
+      throw new Error("Gemini API 접근 거부. API 키 권한을 확인하거나 Google AI Studio(aistudio.google.com)에서 새 키를 발급받으세요.");
+    } else if (response.status === 404) {
+      const modelName = this.settings.geminiModel;
+      throw new Error(`Gemini 모델 '${modelName}'을 찾을 수 없습니다. 설정에서 모델명을 확인하세요. (추천: gemini-2.0-flash, gemini-1.5-pro)`);
     } else if (response.status === 429) {
       throw new Error("Gemini API 사용량 한도 초과. 잠시 후 다시 시도해주세요.");
     } else if (response.status !== 200) {
-      throw new Error(`Gemini API 오류 (${response.status}): ${response.text || "알 수 없는 오류"}`);
+      const errorDetail = response.json?.error?.message || response.text || "알 수 없는 오류";
+      throw new Error(`Gemini API 오류 (${response.status}): ${errorDetail}`);
     }
 
     const result = response.json;
