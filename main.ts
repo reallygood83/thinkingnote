@@ -22,11 +22,13 @@ const MATERIAL_NOTE_SUFFIX = " - Materials";
 
 // ===== Interfaces =====
 interface ThinkingToolSettings {
-  aiProvider: "openai" | "anthropic";
+  aiProvider: "gemini" | "openai" | "anthropic";
   openaiApiKey: string;
   anthropicApiKey: string;
+  geminiApiKey: string;
   openaiModel: string;
   anthropicModel: string;
+  geminiModel: string;
   materialNoteFolder: string;
   connectionsLimit: number;
   outputLanguage: string;
@@ -61,11 +63,13 @@ interface TopicSuggestion {
 type Persona = "essay" | "blog" | "academic" | "twitter" | "custom";
 
 const DEFAULT_SETTINGS: ThinkingToolSettings = {
-  aiProvider: "openai",
+  aiProvider: "gemini",
   openaiApiKey: "",
   anthropicApiKey: "",
+  geminiApiKey: "",
   openaiModel: "gpt-4o",
   anthropicModel: "claude-sonnet-4-20250514",
+  geminiModel: "gemini-2.5-flash-preview-05-20",
   materialNoteFolder: "",
   connectionsLimit: 20,
   outputLanguage: "한국어",
@@ -657,7 +661,9 @@ Write the complete article in ${language} now:`;
   }
 
   private async callAI(prompt: string): Promise<string> {
-    if (this.settings.aiProvider === "openai") {
+    if (this.settings.aiProvider === "gemini") {
+      return await this.callGemini(prompt);
+    } else if (this.settings.aiProvider === "openai") {
       return await this.callOpenAI(prompt);
     } else {
       return await this.callAnthropic(prompt);
@@ -716,6 +722,42 @@ Write the complete article in ${language} now:`;
     }
 
     return response.json.content[0].text;
+  }
+
+  private async callGemini(prompt: string): Promise<string> {
+    if (!this.settings.geminiApiKey) {
+      throw new Error("Gemini API key not configured");
+    }
+
+    const response = await requestUrl({
+      url: `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.geminiModel}:generateContent?key=${this.settings.geminiApiKey}`,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          maxOutputTokens: 4000,
+          temperature: 0.7,
+        },
+      }),
+    });
+
+    if (response.status !== 200) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const result = response.json;
+    if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
+      return result.candidates[0].content.parts[0].text;
+    }
+    
+    throw new Error("Unexpected Gemini API response format");
   }
 
   // ===== Article Creation =====
@@ -1304,11 +1346,41 @@ class ThinkingToolSettingTab extends PluginSettingTab {
       .setDesc("Choose your AI provider")
       .addDropdown((dropdown) =>
         dropdown
+          .addOption("gemini", "Google Gemini (Recommended)")
           .addOption("openai", "OpenAI")
           .addOption("anthropic", "Anthropic (Claude)")
           .setValue(this.plugin.settings.aiProvider)
-          .onChange(async (value: "openai" | "anthropic") => {
+          .onChange(async (value: "gemini" | "openai" | "anthropic") => {
             this.plugin.settings.aiProvider = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    // Gemini Settings
+    containerEl.createEl("h4", { text: "Google Gemini" });
+
+    new Setting(containerEl)
+      .setName("API Key")
+      .setDesc("Your Google AI Studio API key (aistudio.google.com)")
+      .addText((text) =>
+        text
+          .setPlaceholder("AIza...")
+          .setValue(this.plugin.settings.geminiApiKey)
+          .onChange(async (value) => {
+            this.plugin.settings.geminiApiKey = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Model")
+      .setDesc("Gemini model to use")
+      .addText((text) =>
+        text
+          .setPlaceholder("gemini-2.5-flash-preview-05-20")
+          .setValue(this.plugin.settings.geminiModel)
+          .onChange(async (value) => {
+            this.plugin.settings.geminiModel = value;
             await this.plugin.saveSettings();
           })
       );
