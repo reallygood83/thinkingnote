@@ -211,22 +211,34 @@
 
 /* ===== Article Generation Modal ===== */
 .thinking-tool-generate-modal {
-  max-width: 600px;
+  max-width: 700px;
+  width: 90vw;
+}
+
+.thinking-tool-generate-modal .modal-header {
+  margin-bottom: 15px;
+}
+
+.thinking-tool-generate-modal .modal-header h2 {
+  margin: 0;
+  font-size: 20px;
 }
 
 .thinking-tool-generate-modal .step-indicator {
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
-  gap: 10px;
+  margin-bottom: 25px;
+  gap: 8px;
 }
 
 .thinking-tool-generate-modal .step {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
+  gap: 4px;
+  font-size: 11px;
   color: var(--text-muted);
+  padding: 0 10px;
 }
 
 .thinking-tool-generate-modal .step.active {
@@ -234,15 +246,20 @@
   font-weight: 600;
 }
 
+.thinking-tool-generate-modal .step.completed {
+  color: var(--text-success, #4ade80);
+}
+
 .thinking-tool-generate-modal .step-number {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--background-secondary);
   font-size: 12px;
+  font-weight: 600;
 }
 
 .thinking-tool-generate-modal .step.active .step-number {
@@ -250,15 +267,82 @@
   color: var(--text-on-accent);
 }
 
+.thinking-tool-generate-modal .step.completed .step-number {
+  background: var(--text-success, #4ade80);
+  color: white;
+}
+
+.thinking-tool-generate-modal .step-label {
+  font-size: 11px;
+}
+
+.thinking-tool-generate-modal h3 {
+  font-size: 16px;
+  margin: 0 0 8px 0;
+}
+
+.thinking-tool-generate-modal h4 {
+  font-size: 14px;
+  margin: 20px 0 10px 0;
+  color: var(--text-muted);
+}
+
+.thinking-tool-generate-modal .step-description {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 15px;
+}
+
+/* Error Banner */
+.thinking-tool-generate-modal .error-banner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 12px 15px;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.thinking-tool-generate-modal .error-banner span {
+  color: var(--text-error, #ef4444);
+  font-size: 13px;
+}
+
+.thinking-tool-generate-modal .btn-retry {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Material Info */
+.thinking-tool-generate-modal .material-info {
+  background: var(--background-secondary);
+  padding: 10px 15px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Topic Options */
 .thinking-tool-generate-modal .topic-options {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-bottom: 20px;
+  max-height: 350px;
+  overflow-y: auto;
 }
 
 .thinking-tool-generate-modal .topic-option {
-  padding: 15px;
+  padding: 12px 15px;
   border: 2px solid var(--background-modifier-border);
   border-radius: 8px;
   cursor: pointer;
@@ -267,26 +351,180 @@
 
 .thinking-tool-generate-modal .topic-option:hover {
   border-color: var(--interactive-accent);
+  background: var(--background-secondary-alt);
 }
 
 .thinking-tool-generate-modal .topic-option.selected {
   border-color: var(--interactive-accent);
-  background: var(--background-secondary);
+  background: rgba(var(--interactive-accent-rgb), 0.1);
+}
+
+.thinking-tool-generate-modal .topic-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 5px;
 }
 
 .thinking-tool-generate-modal .topic-title {
   font-weight: 600;
-  margin-bottom: 5px;
+  font-size: 14px;
+  flex: 1;
+}
+
+.thinking-tool-generate-modal .selected-badge {
+  font-size: 11px;
+  color: var(--interactive-accent);
+  font-weight: 600;
 }
 
 .thinking-tool-generate-modal .topic-description {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.thinking-tool-generate-modal .outline-preview {
+  background: var(--background-secondary);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.thinking-tool-generate-modal .outline-point {
+  color: var(--text-muted);
+  margin: 2px 0;
+}
+
+.thinking-tool-generate-modal .outline-more {
+  color: var(--text-faint);
+  font-style: italic;
+  margin-top: 4px;
+}
+
+/* Custom Topic Section */
+.thinking-tool-generate-modal .custom-topic-section {
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 15px;
+  margin-top: 15px;
+}
+
+.thinking-tool-generate-modal .custom-topic-section h4 {
+  margin: 0 0 10px 0;
+}
+
+.thinking-tool-generate-modal .custom-topic-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.thinking-tool-generate-modal .custom-topic-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+/* Outline Editor */
+.thinking-tool-generate-modal .selected-topic-info {
+  background: var(--background-secondary);
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.thinking-tool-generate-modal .selected-topic-info strong {
+  font-size: 15px;
+}
+
+.thinking-tool-generate-modal .selected-topic-info p {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 5px 0 0 0;
+}
+
+.thinking-tool-generate-modal .outline-editor {
+  background: var(--background-secondary);
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.thinking-tool-generate-modal .outline-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.thinking-tool-generate-modal .outline-number {
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 24px;
+}
+
+.thinking-tool-generate-modal .outline-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
   font-size: 13px;
+}
+
+.thinking-tool-generate-modal .outline-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.thinking-tool-generate-modal .btn-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.thinking-tool-generate-modal .btn-delete {
+  background: transparent;
   color: var(--text-muted);
 }
 
+.thinking-tool-generate-modal .btn-delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--text-error, #ef4444);
+}
+
+.thinking-tool-generate-modal .btn-add-outline {
+  width: 100%;
+  padding: 8px;
+  margin-top: 10px;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.thinking-tool-generate-modal .btn-add-outline:hover {
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+}
+
+/* Persona Selector */
 .thinking-tool-generate-modal .persona-selector {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-bottom: 20px;
 }
@@ -306,20 +544,88 @@
 
 .thinking-tool-generate-modal .persona-option.selected {
   border-color: var(--interactive-accent);
-  background: var(--background-secondary);
+  background: rgba(var(--interactive-accent-rgb), 0.1);
 }
 
-.thinking-tool-generate-modal .generating-state {
+.thinking-tool-generate-modal .persona-label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.thinking-tool-generate-modal .persona-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Length Selector */
+.thinking-tool-generate-modal .length-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.thinking-tool-generate-modal .length-option {
+  padding: 12px;
+  border: 2px solid var(--background-modifier-border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.thinking-tool-generate-modal .length-option:hover {
+  border-color: var(--interactive-accent);
+}
+
+.thinking-tool-generate-modal .length-option.selected {
+  border-color: var(--interactive-accent);
+  background: rgba(var(--interactive-accent-rgb), 0.1);
+}
+
+.thinking-tool-generate-modal .length-label {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.thinking-tool-generate-modal .length-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Custom Instructions */
+.thinking-tool-generate-modal .custom-instructions {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 13px;
+  resize: vertical;
+  margin-bottom: 20px;
+}
+
+.thinking-tool-generate-modal .custom-instructions:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+/* Loading State */
+.thinking-tool-generate-modal .loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px;
+  padding: 50px;
   color: var(--text-muted);
 }
 
 .thinking-tool-generate-modal .spinner {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border: 3px solid var(--background-modifier-border);
   border-top-color: var(--interactive-accent);
   border-radius: 50%;
@@ -331,6 +637,76 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Empty State */
+.thinking-tool-generate-modal .empty-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.thinking-tool-generate-modal .empty-state .empty-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.thinking-tool-generate-modal .empty-state h3 {
+  margin-bottom: 8px;
+}
+
+.thinking-tool-generate-modal .empty-state p {
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+/* Modal Buttons */
+.thinking-tool-generate-modal .modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.thinking-tool-generate-modal .modal-buttons button {
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.thinking-tool-generate-modal .modal-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.thinking-tool-generate-modal .modal-buttons .btn-primary {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+}
+
+.thinking-tool-generate-modal .modal-buttons .btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.thinking-tool-generate-modal .modal-buttons .btn-secondary {
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.thinking-tool-generate-modal .modal-buttons .btn-secondary:hover {
+  background: var(--background-modifier-hover);
+}
+
+.thinking-tool-generate-modal .btn-generate {
+  background: linear-gradient(135deg, var(--interactive-accent), var(--interactive-accent-hover));
+  font-size: 14px;
+  padding: 12px 24px;
 }
 
 /* ===== Settings Tab ===== */
@@ -346,4 +722,16 @@
   margin-top: 0;
   padding-top: 0;
   border-top: none;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 600px) {
+  .thinking-tool-generate-modal .persona-selector,
+  .thinking-tool-generate-modal .length-selector {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .thinking-tool-generate-modal .step-label {
+    display: none;
+  }
 }

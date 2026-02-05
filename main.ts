@@ -60,7 +60,19 @@ interface TopicSuggestion {
   outline: string[];
 }
 
-type Persona = "essay" | "blog" | "academic" | "twitter" | "custom";
+type Persona = "essay" | "blog" | "academic" | "twitter" | "newsletter" | "storytelling" | "custom";
+type ArticleLength = "short" | "medium" | "long";
+
+interface GenerationOptions {
+  topic: TopicSuggestion;
+  persona: Persona;
+  length: ArticleLength;
+  customInstructions?: string;
+}
+
+const API_TIMEOUT = 60000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
 
 const DEFAULT_SETTINGS: ThinkingToolSettings = {
   aiProvider: "gemini",
@@ -574,108 +586,174 @@ export default class ThinkingToolPlugin extends Plugin {
 
   // ===== AI Integration =====
   async generateTopicSuggestions(
-    materialsContent: string
+    materialsContent: string,
+    onProgress?: (status: string) => void
   ): Promise<TopicSuggestion[]> {
     const language = this.settings.outputLanguage || "한국어";
     
-    const prompt = `You are a creative writing assistant. Based on the following collected materials, suggest 3 provocative and interesting topic/angle combinations for an article.
+    const prompt = `You are a creative writing assistant helping a writer craft compelling articles from their collected materials.
 
-**IMPORTANT: All output must be written in ${language}.**
+**CRITICAL: All output must be written in ${language}.**
 
-Materials:
+## Collected Materials:
 ${materialsContent}
 
+## Your Task:
+Analyze the materials deeply and suggest **5 unique topic angles** for an article. Each suggestion should offer a distinct perspective:
+
+1. **Mainstream Angle**: A conventional, accessible approach that most readers would expect
+2. **Contrarian Angle**: A perspective that challenges common assumptions or conventional wisdom
+3. **Personal/Emotional Angle**: A deeply personal, story-driven approach
+4. **Analytical/Deep-dive Angle**: A thorough, research-oriented perspective
+5. **Provocative/Bold Angle**: A daring, attention-grabbing take that sparks discussion
+
 For each suggestion, provide:
-1. A compelling title (in ${language})
-2. A brief description of the angle/approach (in ${language})
-3. A simple outline with 3-5 bullet points (in ${language})
+- **title**: An engaging, click-worthy title (10-15 words max)
+- **description**: A 2-3 sentence description of the angle and why it's compelling
+- **outline**: 4-6 key points that structure the article
 
-Be provocative and creative - suggest angles that might challenge assumptions or offer fresh perspectives.
-
-Respond in JSON format (but content in ${language}):
+Respond ONLY with valid JSON (no markdown, no explanation):
 [
   {
-    "title": "...",
-    "description": "...",
-    "outline": ["point 1", "point 2", "point 3"]
+    "title": "제목",
+    "description": "설명",
+    "outline": ["포인트1", "포인트2", "포인트3", "포인트4"]
   }
 ]`;
 
-    const response = await this.callAI(prompt);
+    onProgress?.("소재 분석 중...");
+    const response = await this.callAI(prompt, onProgress);
+    
     try {
-      // Extract JSON from response
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      const jsonMatch = response.match(/\[[\s\S]*?\]/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const topics = JSON.parse(jsonMatch[0]) as TopicSuggestion[];
+        if (Array.isArray(topics) && topics.length > 0) {
+          return topics.slice(0, 5);
+        }
       }
-      return [];
-    } catch {
-      console.error("Failed to parse topic suggestions");
-      return [];
+      throw new Error("유효한 주제를 생성하지 못했습니다.");
+    } catch (error) {
+      console.error("Failed to parse topic suggestions:", error, response);
+      throw new Error("주제 제안 파싱 실패: AI 응답 형식이 올바르지 않습니다.");
     }
   }
 
   async generateArticle(
     materialsContent: string,
-    topic: TopicSuggestion,
-    persona: Persona
+    options: GenerationOptions,
+    onProgress?: (status: string) => void
   ): Promise<string> {
     const language = this.settings.outputLanguage || "한국어";
+    const { topic, persona, length, customInstructions } = options;
     
     const personaPrompts: Record<Persona, string> = {
-      essay:
-        `Write in a thoughtful, reflective essay style with depth and nuance. Use literary techniques and personal insights. Write entirely in ${language}.`,
-      blog: `Write in a friendly, conversational blog style. Be engaging and accessible while maintaining substance. Write entirely in ${language}.`,
-      academic:
-        `Write in a formal academic style with clear argumentation, citations where appropriate, and rigorous analysis. Write entirely in ${language}.`,
-      twitter:
-        `Write as a compelling Twitter/X thread. Use short, punchy sentences. Include hooks and build tension. Format as numbered tweets. Write entirely in ${language}.`,
-      custom:
-        `Write in a clear, professional style that balances accessibility with depth. Write entirely in ${language}.`,
+      essay: `깊이 있는 성찰적 에세이 스타일. 문학적 기법과 개인적 통찰을 활용하세요. 은유, 비유를 적절히 사용하고 독자의 감정에 호소하세요.`,
+      blog: `친근하고 대화하듯 쓰는 블로그 스타일. 접근하기 쉽지만 내용은 충실하게. 독자에게 직접 말을 거는 듯한 톤을 유지하세요.`,
+      academic: `학술적이고 논증적인 스타일. 명확한 논리 구조와 근거 제시. 객관적인 톤을 유지하며 체계적으로 서술하세요.`,
+      twitter: `트위터/X 스레드 형식. 짧고 강렬한 문장. 각 트윗은 번호를 매기고, 훅(hook)으로 시작해 긴장감을 유지하세요. 이모지 적절히 활용.`,
+      newsletter: `뉴스레터 스타일. 독자에게 가치 있는 인사이트 전달. 핵심 포인트를 명확히 하고, 실행 가능한 조언을 포함하세요.`,
+      storytelling: `스토리텔링 스타일. 이야기로 시작해 독자를 끌어들이세요. 구체적인 사례와 생생한 묘사를 활용하세요.`,
+      custom: `명확하고 전문적인 스타일. 접근성과 깊이의 균형을 맞추세요.`,
     };
 
-    const prompt = `You are a skilled writer. Write an article based on the following:
+    const lengthGuides: Record<ArticleLength, string> = {
+      short: "800-1200자 분량의 간결한 글. 핵심만 명확하게 전달하세요.",
+      medium: "2000-3000자 분량의 적당한 길이. 충분한 설명과 예시를 포함하세요.",
+      long: "4000-5000자 분량의 심층 글. 자세한 분석, 다양한 관점, 풍부한 예시를 포함하세요.",
+    };
 
-**IMPORTANT: The entire article must be written in ${language}.**
+    const prompt = `당신은 ${language}로 글을 쓰는 숙련된 작가입니다.
 
-Topic: ${topic.title}
-Approach: ${topic.description}
-Outline:
-${topic.outline.map((p, i) => `${i + 1}. ${p}`).join("\n")}
+## 글 정보
+- **제목**: ${topic.title}
+- **접근 방식**: ${topic.description}
+- **아웃라인**:
+${topic.outline.map((p, i) => `  ${i + 1}. ${p}`).join("\n")}
 
-Materials to incorporate:
+## 참고 소재
 ${materialsContent}
 
-Style: ${personaPrompts[persona]}
+## 작성 지침
+- **스타일**: ${personaPrompts[persona]}
+- **분량**: ${lengthGuides[length]}
+${customInstructions ? `- **추가 지시**: ${customInstructions}` : ""}
 
-Important:
-- Write the entire article in ${language}
-- Incorporate the collected materials naturally
-- Stay true to the user's collected thoughts and insights
-- Don't add information that contradicts the materials
-- Make the article coherent and well-structured
+## 중요 규칙
+1. 반드시 ${language}로 작성하세요
+2. 수집된 소재의 내용과 작성자의 생각을 자연스럽게 녹여내세요
+3. 소재와 모순되는 내용을 추가하지 마세요
+4. 작성자의 고유한 관점과 목소리를 유지하세요
+5. 아웃라인 구조를 따르되, 자연스러운 흐름을 만드세요
+6. 도입부에서 독자의 관심을 사로잡고, 결론에서 여운을 남기세요
 
-Write the complete article in ${language} now:`;
+지금 바로 완성된 글을 작성하세요:`;
 
-    return await this.callAI(prompt);
+    onProgress?.("글 생성 중...");
+    return await this.callAI(prompt, onProgress);
   }
 
-  private async callAI(prompt: string): Promise<string> {
-    if (this.settings.aiProvider === "gemini") {
-      return await this.callGemini(prompt);
-    } else if (this.settings.aiProvider === "openai") {
-      return await this.callOpenAI(prompt);
-    } else {
-      return await this.callAnthropic(prompt);
+  private async callAI(prompt: string, onProgress?: (status: string) => void): Promise<string> {
+    const provider = this.settings.aiProvider;
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        onProgress?.(`AI 호출 중... (시도 ${attempt}/${MAX_RETRIES})`);
+        
+        let result: string;
+        if (provider === "gemini") {
+          result = await this.callGeminiWithTimeout(prompt);
+        } else if (provider === "openai") {
+          result = await this.callOpenAIWithTimeout(prompt);
+        } else {
+          result = await this.callAnthropicWithTimeout(prompt);
+        }
+        
+        return result;
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`AI call attempt ${attempt} failed:`, error);
+        
+        if (attempt < MAX_RETRIES) {
+          const delay = RETRY_DELAY * Math.pow(2, attempt - 1);
+          onProgress?.(`재시도 대기 중... (${delay / 1000}초)`);
+          await this.sleep(delay);
+        }
+      }
+    }
+    
+    throw new Error(`AI 호출 실패 (${MAX_RETRIES}회 시도): ${lastError?.message || "알 수 없는 오류"}`);
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+    let timeoutId: NodeJS.Timeout;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`요청 시간 초과 (${timeoutMs / 1000}초)`));
+      }, timeoutMs);
+    });
+
+    try {
+      const result = await Promise.race([promise, timeoutPromise]);
+      clearTimeout(timeoutId!);
+      return result;
+    } catch (error) {
+      clearTimeout(timeoutId!);
+      throw error;
     }
   }
 
-  private async callOpenAI(prompt: string): Promise<string> {
+  private async callOpenAIWithTimeout(prompt: string): Promise<string> {
     if (!this.settings.openaiApiKey) {
-      throw new Error("OpenAI API key not configured");
+      throw new Error("OpenAI API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.");
     }
 
-    const response = await requestUrl({
+    const request = requestUrl({
       url: "https://api.openai.com/v1/chat/completions",
       method: "POST",
       headers: {
@@ -690,19 +768,29 @@ Write the complete article in ${language} now:`;
       }),
     });
 
-    if (response.status !== 200) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+    const response = await this.withTimeout(request, API_TIMEOUT);
+
+    if (response.status === 401) {
+      throw new Error("OpenAI API 키가 유효하지 않습니다.");
+    } else if (response.status === 429) {
+      throw new Error("OpenAI API 사용량 한도 초과. 잠시 후 다시 시도해주세요.");
+    } else if (response.status !== 200) {
+      throw new Error(`OpenAI API 오류 (${response.status}): ${response.text || "알 수 없는 오류"}`);
     }
 
-    return response.json.choices[0].message.content;
+    const content = response.json?.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error("OpenAI 응답 형식이 올바르지 않습니다.");
+    }
+    return content;
   }
 
-  private async callAnthropic(prompt: string): Promise<string> {
+  private async callAnthropicWithTimeout(prompt: string): Promise<string> {
     if (!this.settings.anthropicApiKey) {
-      throw new Error("Anthropic API key not configured");
+      throw new Error("Anthropic API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.");
     }
 
-    const response = await requestUrl({
+    const request = requestUrl({
       url: "https://api.anthropic.com/v1/messages",
       method: "POST",
       headers: {
@@ -717,19 +805,29 @@ Write the complete article in ${language} now:`;
       }),
     });
 
-    if (response.status !== 200) {
-      throw new Error(`Anthropic API error: ${response.status}`);
+    const response = await this.withTimeout(request, API_TIMEOUT);
+
+    if (response.status === 401) {
+      throw new Error("Anthropic API 키가 유효하지 않습니다.");
+    } else if (response.status === 429) {
+      throw new Error("Anthropic API 사용량 한도 초과. 잠시 후 다시 시도해주세요.");
+    } else if (response.status !== 200) {
+      throw new Error(`Anthropic API 오류 (${response.status}): ${response.text || "알 수 없는 오류"}`);
     }
 
-    return response.json.content[0].text;
+    const content = response.json?.content?.[0]?.text;
+    if (!content) {
+      throw new Error("Anthropic 응답 형식이 올바르지 않습니다.");
+    }
+    return content;
   }
 
-  private async callGemini(prompt: string): Promise<string> {
+  private async callGeminiWithTimeout(prompt: string): Promise<string> {
     if (!this.settings.geminiApiKey) {
-      throw new Error("Gemini API key not configured");
+      throw new Error("Gemini API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.");
     }
 
-    const response = await requestUrl({
+    const request = requestUrl({
       url: `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.geminiModel}:generateContent?key=${this.settings.geminiApiKey}`,
       method: "POST",
       headers: {
@@ -742,22 +840,32 @@ Write the complete article in ${language} now:`;
           },
         ],
         generationConfig: {
-          maxOutputTokens: 4000,
+          maxOutputTokens: 8000,
           temperature: 0.7,
         },
       }),
     });
 
-    if (response.status !== 200) {
-      throw new Error(`Gemini API error: ${response.status}`);
+    const response = await this.withTimeout(request, API_TIMEOUT);
+
+    if (response.status === 400) {
+      throw new Error("Gemini API 키가 유효하지 않거나 요청 형식이 잘못되었습니다.");
+    } else if (response.status === 429) {
+      throw new Error("Gemini API 사용량 한도 초과. 잠시 후 다시 시도해주세요.");
+    } else if (response.status !== 200) {
+      throw new Error(`Gemini API 오류 (${response.status}): ${response.text || "알 수 없는 오류"}`);
     }
 
     const result = response.json;
-    if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
-      return result.candidates[0].content.parts[0].text;
+    const content = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) {
+      const blockReason = result?.candidates?.[0]?.finishReason;
+      if (blockReason === "SAFETY") {
+        throw new Error("안전 필터에 의해 응답이 차단되었습니다. 다른 소재로 시도해주세요.");
+      }
+      throw new Error("Gemini 응답 형식이 올바르지 않습니다.");
     }
-    
-    throw new Error("Unexpected Gemini API response format");
+    return content;
   }
 
   // ===== Article Creation =====
@@ -1106,8 +1214,15 @@ class GenerateArticleModal extends Modal {
   step: number = 1;
   topics: TopicSuggestion[] = [];
   selectedTopic: TopicSuggestion | null = null;
+  editedOutline: string[] = [];
   selectedPersona: Persona = "essay";
-  isGenerating: boolean = false;
+  selectedLength: ArticleLength = "medium";
+  customInstructions: string = "";
+  isLoading: boolean = false;
+  loadingStatus: string = "";
+  lastError: string | null = null;
+  materialsContent: string | null = null;
+  materialCount: number = 0;
 
   constructor(app: App, plugin: ThinkingToolPlugin) {
     super(app);
@@ -1117,101 +1232,164 @@ class GenerateArticleModal extends Modal {
   async onOpen() {
     const { contentEl } = this;
     contentEl.addClass("thinking-tool-generate-modal");
-
+    
+    this.materialsContent = await this.getMaterialsContent();
+    this.materialCount = this.countMaterials(this.materialsContent);
+    
     await this.render();
+  }
+
+  countMaterials(content: string | null): number {
+    if (!content) return 0;
+    const matches = content.match(/>\s*\[!quote\]/g);
+    return matches ? matches.length : 0;
   }
 
   async render() {
     const { contentEl } = this;
     contentEl.empty();
 
-    contentEl.createEl("h2", { text: "Generate Article" });
-
-    // Step indicator
+    const header = contentEl.createDiv({ cls: "modal-header" });
+    header.createEl("h2", { text: "✍️ 글 생성" });
+    
+    const stepLabels = ["주제 선택", "아웃라인 수정", "스타일 설정", "생성"];
     const stepIndicator = contentEl.createDiv({ cls: "step-indicator" });
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 4; i++) {
       const stepDiv = stepIndicator.createDiv({
-        cls: `step ${i === this.step ? "active" : ""}`,
+        cls: `step ${i === this.step ? "active" : ""} ${i < this.step ? "completed" : ""}`,
       });
-      stepDiv.createSpan({ cls: "step-number", text: String(i) });
-      stepDiv.createSpan({
-        text: i === 1 ? "Topics" : i === 2 ? "Persona" : "Generate",
-      });
+      stepDiv.createSpan({ cls: "step-number", text: i < this.step ? "✓" : String(i) });
+      stepDiv.createSpan({ cls: "step-label", text: stepLabels[i - 1] });
     }
 
-    if (this.isGenerating) {
-      const generating = contentEl.createDiv({ cls: "generating-state" });
-      generating.createDiv({ cls: "spinner" });
-      generating.createEl("p", { text: "Generating..." });
+    if (this.lastError) {
+      const errorDiv = contentEl.createDiv({ cls: "error-banner" });
+      errorDiv.createSpan({ text: `⚠️ ${this.lastError}` });
+      const retryBtn = errorDiv.createEl("button", { text: "다시 시도", cls: "btn-retry" });
+      retryBtn.onclick = () => {
+        this.lastError = null;
+        this.render();
+        if (this.step === 1 && this.topics.length === 0) {
+          this.loadTopics();
+        }
+      };
+    }
+
+    if (this.isLoading) {
+      const loadingDiv = contentEl.createDiv({ cls: "loading-state" });
+      loadingDiv.createDiv({ cls: "spinner" });
+      loadingDiv.createEl("p", { text: this.loadingStatus || "처리 중..." });
       return;
     }
 
-    if (this.step === 1) {
-      await this.renderStep1(contentEl);
-    } else if (this.step === 2) {
-      this.renderStep2(contentEl);
+    switch (this.step) {
+      case 1:
+        await this.renderStep1Topics(contentEl);
+        break;
+      case 2:
+        this.renderStep2Outline(contentEl);
+        break;
+      case 3:
+        this.renderStep3Style(contentEl);
+        break;
+      case 4:
+        await this.renderStep4Generate(contentEl);
+        break;
     }
   }
 
-  async renderStep1(contentEl: HTMLElement) {
-    if (this.topics.length === 0) {
-      contentEl.createEl("p", { text: "Analyzing your materials..." });
-
-      // Get materials content
-      const materialsContent = await this.getMaterialsContent();
-      if (!materialsContent) {
-        contentEl.empty();
-        contentEl.createEl("p", {
-          text: "No materials found. Add some materials first!",
-        });
-        return;
-      }
-
-      try {
-        this.topics = await this.plugin.generateTopicSuggestions(
-          materialsContent
-        );
-        this.render();
-        return;
-      } catch (error) {
-        contentEl.empty();
-        contentEl.createEl("p", {
-          text: `Error generating topics: ${error}`,
-        });
-        return;
-      }
+  async renderStep1Topics(contentEl: HTMLElement) {
+    if (this.materialCount < 1) {
+      const emptyDiv = contentEl.createDiv({ cls: "empty-state" });
+      emptyDiv.createDiv({ cls: "empty-icon", text: "📝" });
+      emptyDiv.createEl("h3", { text: "소재가 없습니다" });
+      emptyDiv.createEl("p", { text: "먼저 노트에서 텍스트를 선택하고 소재로 추가해주세요." });
+      
+      const closeBtn = contentEl.createEl("button", { cls: "btn-primary", text: "닫기" });
+      closeBtn.onclick = () => this.close();
+      return;
     }
 
-    contentEl.createEl("h3", { text: "Choose a Topic Angle" });
+    const infoDiv = contentEl.createDiv({ cls: "material-info" });
+    infoDiv.createSpan({ text: `📚 수집된 소재: ${this.materialCount}개` });
+
+    if (this.topics.length === 0) {
+      await this.loadTopics();
+      return;
+    }
+
+    contentEl.createEl("h3", { text: "주제를 선택하세요" });
+    contentEl.createEl("p", { cls: "step-description", text: "AI가 분석한 5가지 관점 중 하나를 선택하거나, 직접 주제를 입력하세요." });
 
     const topicsContainer = contentEl.createDiv({ cls: "topic-options" });
 
     for (const topic of this.topics) {
+      const isSelected = this.selectedTopic === topic;
       const option = topicsContainer.createDiv({
-        cls: `topic-option ${this.selectedTopic === topic ? "selected" : ""}`,
+        cls: `topic-option ${isSelected ? "selected" : ""}`,
       });
-      option.createDiv({ cls: "topic-title", text: topic.title });
+      
+      const titleRow = option.createDiv({ cls: "topic-title-row" });
+      titleRow.createDiv({ cls: "topic-title", text: topic.title });
+      if (isSelected) {
+        titleRow.createSpan({ cls: "selected-badge", text: "✓ 선택됨" });
+      }
+      
       option.createDiv({ cls: "topic-description", text: topic.description });
+      
+      const outlinePreview = option.createDiv({ cls: "outline-preview" });
+      topic.outline.slice(0, 3).forEach(point => {
+        outlinePreview.createDiv({ cls: "outline-point", text: `• ${point}` });
+      });
+      if (topic.outline.length > 3) {
+        outlinePreview.createDiv({ cls: "outline-more", text: `+${topic.outline.length - 3}개 더...` });
+      }
 
       option.onclick = () => {
         this.selectedTopic = topic;
+        this.editedOutline = [...topic.outline];
         this.render();
       };
     }
 
-    // Buttons
-    const buttons = contentEl.createDiv({ cls: "modal-buttons" });
-
-    const cancelBtn = buttons.createEl("button", {
-      cls: "btn-secondary",
-      text: "Cancel",
+    const customSection = contentEl.createDiv({ cls: "custom-topic-section" });
+    customSection.createEl("h4", { text: "또는 직접 입력" });
+    
+    const customInput = customSection.createEl("input", {
+      cls: "custom-topic-input",
+      attr: { type: "text", placeholder: "원하는 주제나 제목을 입력하세요..." }
     });
+    
+    const customBtn = customSection.createEl("button", { cls: "btn-secondary", text: "이 주제로 진행" });
+    customBtn.onclick = () => {
+      const title = customInput.value.trim();
+      if (title) {
+        this.selectedTopic = {
+          title,
+          description: "사용자 직접 입력 주제",
+          outline: ["서론", "본론 1", "본론 2", "결론"]
+        };
+        this.editedOutline = [...this.selectedTopic.outline];
+        this.step = 2;
+        this.render();
+      } else {
+        new Notice("주제를 입력해주세요.");
+      }
+    };
+
+    const buttons = contentEl.createDiv({ cls: "modal-buttons" });
+    
+    const refreshBtn = buttons.createEl("button", { cls: "btn-secondary", text: "🔄 다른 주제 제안받기" });
+    refreshBtn.onclick = () => {
+      this.topics = [];
+      this.selectedTopic = null;
+      this.render();
+    };
+
+    const cancelBtn = buttons.createEl("button", { cls: "btn-secondary", text: "취소" });
     cancelBtn.onclick = () => this.close();
 
-    const nextBtn = buttons.createEl("button", {
-      cls: "btn-primary",
-      text: "Next",
-    });
+    const nextBtn = buttons.createEl("button", { cls: "btn-primary", text: "다음 →" });
     nextBtn.disabled = !this.selectedTopic;
     nextBtn.onclick = () => {
       if (this.selectedTopic) {
@@ -1221,49 +1399,199 @@ class GenerateArticleModal extends Modal {
     };
   }
 
-  renderStep2(contentEl: HTMLElement) {
-    contentEl.createEl("h3", { text: "Choose Writing Style" });
+  renderStep2Outline(contentEl: HTMLElement) {
+    if (!this.selectedTopic) return;
 
-    const personas: { key: Persona; label: string }[] = [
-      { key: "essay", label: "📝 Essay" },
-      { key: "blog", label: "💬 Blog" },
-      { key: "academic", label: "📚 Academic" },
-      { key: "twitter", label: "🐦 Twitter Thread" },
+    contentEl.createEl("h3", { text: "아웃라인 수정" });
+    contentEl.createEl("p", { cls: "step-description", text: "글의 구조를 확인하고 필요하면 수정하세요. 항목을 추가/삭제/수정할 수 있습니다." });
+
+    const topicInfo = contentEl.createDiv({ cls: "selected-topic-info" });
+    topicInfo.createEl("strong", { text: this.selectedTopic.title });
+    topicInfo.createEl("p", { text: this.selectedTopic.description });
+
+    const outlineEditor = contentEl.createDiv({ cls: "outline-editor" });
+    
+    this.editedOutline.forEach((point, index) => {
+      const row = outlineEditor.createDiv({ cls: "outline-row" });
+      
+      row.createSpan({ cls: "outline-number", text: `${index + 1}.` });
+      
+      const input = row.createEl("input", {
+        cls: "outline-input",
+        attr: { type: "text", value: point }
+      });
+      input.oninput = () => {
+        this.editedOutline[index] = input.value;
+      };
+      
+      const deleteBtn = row.createEl("button", { cls: "btn-icon btn-delete", text: "✕" });
+      deleteBtn.onclick = () => {
+        if (this.editedOutline.length > 2) {
+          this.editedOutline.splice(index, 1);
+          this.render();
+        } else {
+          new Notice("최소 2개 이상의 항목이 필요합니다.");
+        }
+      };
+    });
+
+    const addBtn = outlineEditor.createEl("button", { cls: "btn-add-outline", text: "+ 항목 추가" });
+    addBtn.onclick = () => {
+      this.editedOutline.push("새 항목");
+      this.render();
+    };
+
+    const buttons = contentEl.createDiv({ cls: "modal-buttons" });
+    
+    const backBtn = buttons.createEl("button", { cls: "btn-secondary", text: "← 이전" });
+    backBtn.onclick = () => {
+      this.step = 1;
+      this.render();
+    };
+
+    const nextBtn = buttons.createEl("button", { cls: "btn-primary", text: "다음 →" });
+    nextBtn.onclick = () => {
+      this.selectedTopic!.outline = [...this.editedOutline];
+      this.step = 3;
+      this.render();
+    };
+  }
+
+  renderStep3Style(contentEl: HTMLElement) {
+    contentEl.createEl("h3", { text: "스타일 설정" });
+    contentEl.createEl("p", { cls: "step-description", text: "글의 스타일과 길이를 선택하세요." });
+
+    contentEl.createEl("h4", { text: "글 스타일" });
+    const personas: { key: Persona; label: string; desc: string }[] = [
+      { key: "essay", label: "📝 에세이", desc: "깊이 있는 성찰적 글" },
+      { key: "blog", label: "💬 블로그", desc: "친근하고 대화체" },
+      { key: "newsletter", label: "📧 뉴스레터", desc: "인사이트 전달" },
+      { key: "storytelling", label: "📖 스토리텔링", desc: "이야기로 풀어내기" },
+      { key: "academic", label: "📚 학술적", desc: "논증적, 체계적" },
+      { key: "twitter", label: "🐦 트위터 스레드", desc: "짧고 강렬하게" },
     ];
 
     const personaContainer = contentEl.createDiv({ cls: "persona-selector" });
-
     for (const persona of personas) {
       const option = personaContainer.createDiv({
         cls: `persona-option ${this.selectedPersona === persona.key ? "selected" : ""}`,
       });
-      option.setText(persona.label);
-
+      option.createDiv({ cls: "persona-label", text: persona.label });
+      option.createDiv({ cls: "persona-desc", text: persona.desc });
       option.onclick = () => {
         this.selectedPersona = persona.key;
         this.render();
       };
     }
 
-    // Buttons
-    const buttons = contentEl.createDiv({ cls: "modal-buttons" });
+    contentEl.createEl("h4", { text: "글 길이" });
+    const lengths: { key: ArticleLength; label: string; desc: string }[] = [
+      { key: "short", label: "짧게", desc: "800-1200자" },
+      { key: "medium", label: "보통", desc: "2000-3000자" },
+      { key: "long", label: "길게", desc: "4000-5000자" },
+    ];
 
-    const backBtn = buttons.createEl("button", {
-      cls: "btn-secondary",
-      text: "Back",
+    const lengthContainer = contentEl.createDiv({ cls: "length-selector" });
+    for (const len of lengths) {
+      const option = lengthContainer.createDiv({
+        cls: `length-option ${this.selectedLength === len.key ? "selected" : ""}`,
+      });
+      option.createDiv({ cls: "length-label", text: len.label });
+      option.createDiv({ cls: "length-desc", text: len.desc });
+      option.onclick = () => {
+        this.selectedLength = len.key;
+        this.render();
+      };
+    }
+
+    contentEl.createEl("h4", { text: "추가 지시 (선택사항)" });
+    const customArea = contentEl.createEl("textarea", {
+      cls: "custom-instructions",
+      attr: { placeholder: "예: 독자층은 20-30대 직장인입니다. 실용적인 조언을 강조해주세요." }
     });
+    customArea.value = this.customInstructions;
+    customArea.oninput = () => {
+      this.customInstructions = customArea.value;
+    };
+
+    const buttons = contentEl.createDiv({ cls: "modal-buttons" });
+    
+    const backBtn = buttons.createEl("button", { cls: "btn-secondary", text: "← 이전" });
     backBtn.onclick = () => {
-      this.step = 1;
+      this.step = 2;
       this.render();
     };
 
-    const generateBtn = buttons.createEl("button", {
-      cls: "btn-primary",
-      text: "Generate Article",
-    });
-    generateBtn.onclick = async () => {
-      await this.generateArticle();
+    const generateBtn = buttons.createEl("button", { cls: "btn-primary btn-generate", text: "✨ 글 생성하기" });
+    generateBtn.onclick = () => {
+      this.step = 4;
+      this.render();
     };
+  }
+
+  async renderStep4Generate(contentEl: HTMLElement) {
+    if (!this.selectedTopic || !this.materialsContent) return;
+
+    this.isLoading = true;
+    this.loadingStatus = "글 생성 준비 중...";
+    this.render();
+
+    try {
+      const options: GenerationOptions = {
+        topic: this.selectedTopic,
+        persona: this.selectedPersona,
+        length: this.selectedLength,
+        customInstructions: this.customInstructions || undefined,
+      };
+
+      const article = await this.plugin.generateArticle(
+        this.materialsContent,
+        options,
+        (status) => {
+          this.loadingStatus = status;
+        }
+      );
+
+      const file = await this.plugin.createArticleNote(article, this.selectedTopic);
+
+      if (file) {
+        new Notice("✅ 글이 생성되었습니다!");
+        const leaf = this.app.workspace.getLeaf();
+        await leaf.openFile(file);
+        this.close();
+      } else {
+        throw new Error("노트 생성에 실패했습니다.");
+      }
+    } catch (error) {
+      this.isLoading = false;
+      this.lastError = (error as Error).message;
+      this.step = 3;
+      this.render();
+    }
+  }
+
+  async loadTopics() {
+    if (!this.materialsContent) return;
+
+    this.isLoading = true;
+    this.loadingStatus = "소재 분석 중...";
+    this.render();
+
+    try {
+      this.topics = await this.plugin.generateTopicSuggestions(
+        this.materialsContent,
+        (status) => {
+          this.loadingStatus = status;
+        }
+      );
+      this.isLoading = false;
+      this.lastError = null;
+      this.render();
+    } catch (error) {
+      this.isLoading = false;
+      this.lastError = (error as Error).message;
+      this.render();
+    }
   }
 
   async getMaterialsContent(): Promise<string | null> {
@@ -1275,45 +1603,6 @@ class GenerateArticleModal extends Modal {
     if (!(file instanceof TFile)) return null;
 
     return await this.app.vault.read(file);
-  }
-
-  async generateArticle() {
-    if (!this.selectedTopic) return;
-
-    this.isGenerating = true;
-    this.render();
-
-    try {
-      const materialsContent = await this.getMaterialsContent();
-      if (!materialsContent) {
-        throw new Error("Could not read materials");
-      }
-
-      const article = await this.plugin.generateArticle(
-        materialsContent,
-        this.selectedTopic,
-        this.selectedPersona
-      );
-
-      const file = await this.plugin.createArticleNote(
-        article,
-        this.selectedTopic
-      );
-
-      if (file) {
-        new Notice("Article created!");
-        // Open the new article
-        const leaf = this.app.workspace.getLeaf();
-        await leaf.openFile(file);
-        this.close();
-      } else {
-        throw new Error("Failed to create article note");
-      }
-    } catch (error) {
-      new Notice(`Error: ${error}`);
-      this.isGenerating = false;
-      this.render();
-    }
   }
 
   onClose() {
